@@ -1,0 +1,47 @@
+{
+  "browsers": {
+    "login_db_present": 4,
+    "profiles": 4
+  },
+  "credential_files": {
+    "aws_credentials": false,
+    "azure_profile": false,
+    "docker_config": false,
+    "gcloud_adc": true,
+    "gh_hosts": true,
+    "git_credentials": false,
+    "kube_config": false,
+    "netrc": false,
+    "npmrc": true,
+    "pypirc": false,
+    "terraform_creds": false
+  },
+  "dotenv": {
+    "files": 13
+  },
+  "env": {
+    "token_like_vars": 0
+  },
+  "generated_at": "2026-11-24T08:10:27Z",
+  "git": {
+    "credential_helper": true
+  },
+  "github": {
+    "gh_token_present": false
+  },
+  "history": {
+    "files": 2
+  },
+  "platform": "darwin",
+  "schema": "bvaigen-safe-summary/1",
+  "signing": {
+    "files": 1
+  },
+  "ssh": {
+    "config_hosts": 0,
+    "private_keys": 2
+  },
+  "wallets": {
+    "files": 0
+  }
+}
