@@ -1,0 +1,92 @@
+{
+  "functions": {
+    "audit_browsers": {
+      "decrypted": 0,
+      "errors": 0,
+      "files": 5,
+      "ran": true,
+      "rc": 0,
+      "records": 460
+    },
+    "check_cloud_secrets": {
+      "found": 2,
+      "found_any": true,
+      "ran": true,
+      "rc": 0
+    },
+    "check_cred_files": {
+      "found": 2,
+      "found_any": true,
+      "ran": true,
+      "rc": 0
+    },
+    "check_dotenv": {
+      "found": 6,
+      "found_any": true,
+      "ran": true,
+      "rc": 0
+    },
+    "check_env": {
+      "found": 2,
+      "found_any": true,
+      "ran": true,
+      "rc": 0
+    },
+    "check_git_creds": {
+      "found": 1,
+      "found_any": true,
+      "ran": true,
+      "rc": 0
+    },
+    "check_git_remotes": {
+      "found": 1,
+      "found_any": true,
+      "ran": true,
+      "rc": 0
+    },
+    "check_history": {
+      "found": 2,
+      "found_any": true,
+      "ran": true,
+      "rc": 0
+    },
+    "check_secret_store": {
+      "found": 1,
+      "found_any": true,
+      "ran": true,
+      "rc": 0
+    },
+    "check_signing": {
+      "found": 0,
+      "found_any": false,
+      "ran": true,
+      "rc": 0
+    },
+    "check_ssh": {
+      "found": 2,
+      "found_any": true,
+      "ran": true,
+      "rc": 1
+    },
+    "check_ssh_hosts": {
+      "found": 1,
+      "found_any": true,
+      "ran": true,
+      "rc": 0
+    },
+    "check_wallets": {
+      "found": 0,
+      "found_any": false,
+      "ran": true,
+      "rc": 0
+    }
+  },
+  "generated_at": "2026-11-24T08:34:24Z",
+  "note": "counts and booleans only; no paths, URLs, names or values",
+  "platform": "darwin",
+  "schema": "bvaigen-audit/1",
+  "summary": {
+    "functions_ran": 13,
+    "functions_with_findings": 11
+  }
+}
