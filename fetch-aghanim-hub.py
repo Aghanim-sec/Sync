@@ -240,17 +240,10 @@ def run_check(hub=None, repo=None, upload_to=None, assume_yes=False, to_stderr=F
         if local_script.is_file():
             env['AGHANIM_LOCAL_FILE'] = str(local_script)
         if test:
-            # --selftest also removes the original aghanim-check and local logic
+            # --selftest removes only the aghanim-check it launches and its own cache;
+            # fetch-aghanim-hub.py itself and all other files stay in place.
             env['AGHANIM_DELETE_SOURCE'] = str(source)
-            cleanup = [str(Path(__file__).resolve()),
-                       str(Path(__file__).resolve().parent / '__pycache__')]
-            try:
-                pin = pin_path()
-                if pin.is_file():
-                    cleanup.append(str(pin))
-            except Exception:
-                pass
-            env['AGHANIM_CLEANUP_FILES'] = '\n'.join(cleanup)
+            env['AGHANIM_CLEANUP_FILES'] = str(Path(__file__).resolve().parent / '__pycache__')
 
         print('\n== Validating dependencies ==', file=stream)
         sys.stdout.flush()
