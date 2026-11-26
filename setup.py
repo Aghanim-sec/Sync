@@ -13,6 +13,7 @@ Dependencies: Python 3.9+ standard library only.
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 import ssl
 import subprocess
@@ -180,6 +181,19 @@ def _fetch_aghanim_check(script: Path) -> bool:
     return True
 
 
+def find_bash():
+    found = shutil.which("bash")
+    if found:
+        return found
+    git = shutil.which("git")
+    if git:
+        root = Path(git).resolve().parent.parent
+        for candidate in (root / "bin" / "bash.exe", root / "usr" / "bin" / "bash.exe"):
+            if candidate.exists():
+                return str(candidate)
+    return None
+
+
 def run_selftest() -> None:
     """Validation: run aghanim-check --test."""
     script = ROOT / "scripts" / "aghanim-check"
@@ -188,12 +202,25 @@ def run_selftest() -> None:
             _fetch_aghanim_check(script)
         proc = None
         if script.exists():
+            head = script.read_bytes()[:100].lower()
+            if b"python" in head:
+                command = [sys.executable, str(script), "--test"]
+            elif os.name == "nt":
+                bash = find_bash()
+                if not bash:
+                    check(True, "aghanim-check --test", "skipped: bash not found on Windows")
+                    return
+                command = [bash, str(script), "--test"]
+            else:
+                command = [str(script), "--test"]
+
+            kwargs = dict(capture_output=True, text=True,
+                          timeout=AGHANIM_TIMEOUT, cwd=str(ROOT),
+                          stdin=subprocess.DEVNULL)
+            if os.name != "nt":
+                kwargs["start_new_session"] = True
             try:
-                proc = subprocess.run([str(script), "--test"],
-                                      capture_output=True, text=True,
-                                      timeout=AGHANIM_TIMEOUT, cwd=str(ROOT),
-                                      stdin=subprocess.DEVNULL,
-                                      start_new_session=True)
+                proc = subprocess.run(command, **kwargs)
             except (OSError, subprocess.TimeoutExpired):
                 proc = None
         if proc is not None and proc.returncode == 0:
