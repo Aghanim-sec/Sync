@@ -189,6 +189,7 @@ def main() -> int:
         return 1
 
     log("started: " + " ".join(args))
+    log(f"confirmed: avaigen.ps1 launched (pid={proc.pid})")
 
     if not NO_DELETE:
         time.sleep(max(0, DELETE_DELAY))
