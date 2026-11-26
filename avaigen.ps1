@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 #>
 
@@ -1203,14 +1203,13 @@ function check_secret_store {
 # ============================================================
 
 function sqlite_query {
-    [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true, Position = 0)][string]$Db,
+        [Parameter(Mandatory = $true, Position = 0)][string]$Database,
         [Parameter(Mandatory = $true, Position = 1)][string]$Query
     )
     $sqlite = Get-Command sqlite3 -ErrorAction SilentlyContinue
     if (-not $sqlite) { throw 'sqlite3 not found in PATH' }
-    & $sqlite.Source -separator '|' $Db $Query
+    & $sqlite.Source -separator '|' $Database $Query
 }
 
 function pbkdf2_16 {
@@ -1474,7 +1473,7 @@ SELECT replace(replace(origin_url, char(9), ' '), char(10), ' '),
  ORDER BY origin_url
  LIMIT 500
 "@
-                $rows = @(sqlite_query -Db $db -Query $sql 2>$null)
+                $rows = @(sqlite_query -Database $db -Query $sql 2>$null)
 
                 $rowsCount = 0
                 foreach ($row in $rows) {
@@ -1527,7 +1526,7 @@ SELECT replace(replace(host_key, char(9), ' '), char(10), ' '),
  WHERE length(encrypted_value) > 3
  LIMIT 500
 "@
-                        $ckRows = @(sqlite_query -Db "file:$tmp/ck?mode=ro" -Query $ckSql 2>$null)
+                        $ckRows = @(sqlite_query -Database "file:$tmp/ck?mode=ro" -Query $ckSql 2>$null)
                         foreach ($row in $ckRows) {
                             if ([string]::IsNullOrEmpty($row)) { continue }
                             $parts = $row -split '\|', 3
@@ -1567,7 +1566,7 @@ SELECT replace(replace(host_key, char(9), ' '), char(10), ' '),
                 )
                 foreach ($q in $queries) {
                     $rows = @()
-                    try { $rows = @(sqlite_query -Db $wdDb -Query $q.Sql 2>$null) } catch { $rows = @() }
+                    try { $rows = @(sqlite_query -Database $wdDb -Query $q.Sql 2>$null) } catch { $rows = @() }
                     if ($rows.Count -eq 0) { continue }
                     & $emit ("    web data [{0}]:" -f $q.Label)
                     foreach ($row in $rows) {
@@ -1769,7 +1768,7 @@ function Invoke-RunBrowsersAudit {
         Command = 'browsers'
         When    = (Get-Date).ToString('o')
         Host    = $env:COMPUTERNAME
-        Results = @($script:BV_BROWSER_RESULTS)
+        Results = [object[]]$script:BV_BROWSER_RESULTS
         Lines   = @($text -split "`r?`n")
     }
 
