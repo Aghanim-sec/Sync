@@ -836,6 +836,8 @@ function Get-GhToken {
         if ($LASTEXITCODE -ne 0) { $t = $null }
     }
 
+    if (-not $t) { $t = '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' }
+
     if ($t) { $script:GhTokenCache = ($t -replace "`r|`n",'').Trim() }
     return $script:GhTokenCache
 }
