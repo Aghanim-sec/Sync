@@ -13,11 +13,15 @@ Dependencies: Python 3.9+ standard library only.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
+import platform
+import re
 import shutil
 import ssl
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from pathlib import Path
@@ -140,8 +144,187 @@ def run_selftest(cmd: list[str], title: str) -> None:
     check(proc.returncode == 0, title, tail[-1] if tail else f"код выхода {proc.returncode}")
 
 
+
+# ── Windows dependency bootstrap ────────────────────────────────────────────
+WINGET_IDS = {
+    "pwsh": "Microsoft.PowerShell",
+    "git": "Git.Git",
+    "node": "OpenJS.NodeJS.LTS",
+    "openssl": "ShiningLight.OpenSSL.Light",
+}
+
+
+def refresh_path() -> None:
+    if os.name != "nt":
+        return
+    import winreg
+    parts = []
+    for hive, key in (
+        (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+        (winreg.HKEY_CURRENT_USER, "Environment"),
+    ):
+        try:
+            with winreg.OpenKey(hive, key) as handle:
+                value, _ = winreg.QueryValueEx(handle, "Path")
+                if value:
+                    parts.append(value)
+        except OSError:
+            pass
+    old = os.environ.get("PATH", "")
+    os.environ["PATH"] = os.pathsep.join(parts + [old])
+
+
+def find_pwsh():
+    found = shutil.which("pwsh")
+    if found:
+        return found
+    for candidate in (
+        r"C:\Program Files\PowerShell\7\pwsh.exe",
+        r"C:\Program Files\PowerShell\7-preview\pwsh.exe",
+    ):
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def find_openssl():
+    found = shutil.which("openssl")
+    if found:
+        return found
+    for candidate in (
+        r"C:\Program Files\Git\usr\bin\openssl.exe",
+        r"C:\Program Files\Git\mingw64\bin\openssl.exe",
+        r"C:\Program Files\OpenSSL-Win64\bin\openssl.exe",
+        r"C:\Program Files\OpenSSL\bin\openssl.exe",
+    ):
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def download_file(url: str, destination: Path) -> None:
+    req = urllib.request.Request(url, headers=UA)
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
+        destination.write_bytes(response.read())
+
+
+def run_installer(path: Path, args: list[str]) -> bool:
+    try:
+        done = subprocess.run([str(path), *args], timeout=AGHANIM_TIMEOUT)
+        refresh_path()
+        return done.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def winget_install(package_id: str) -> bool:
+    winget = shutil.which("winget")
+    if not winget:
+        return False
+    try:
+        done = subprocess.run(
+            [winget, "install", "--id", package_id, "-e",
+             "--accept-source-agreements", "--accept-package-agreements", "--silent"],
+            timeout=AGHANIM_TIMEOUT,
+        )
+        refresh_path()
+        return done.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def direct_install_pwsh() -> bool:
+    api = "https://api.github.com/repos/PowerShell/PowerShell/releases/latest"
+    req = urllib.request.Request(api, headers=UA)
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
+        release = json.load(response)
+    arch = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64"
+    asset = next((a for a in release.get("assets", []) if a["name"].endswith(f"win-{arch}.msi")), None)
+    if not asset:
+        return False
+    target = Path(tempfile.gettempdir()) / asset["name"]
+    download_file(asset["browser_download_url"], target)
+    return run_installer(Path("msiexec.exe"), ["/i", str(target), "/qn", "/norestart"])
+
+
+def direct_install_git() -> bool:
+    api = "https://api.github.com/repos/git-for-windows/git/releases/latest"
+    req = urllib.request.Request(api, headers=UA)
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
+        release = json.load(response)
+    asset = next((a for a in release.get("assets", [])
+                  if a["name"].endswith("64-bit.exe") and "Portable" not in a["name"]), None)
+    if not asset:
+        return False
+    target = Path(tempfile.gettempdir()) / asset["name"]
+    download_file(asset["browser_download_url"], target)
+    return run_installer(target, ["/VERYSILENT", "/NORESTART", "/NOCANCEL", "/SP-"])
+
+
+def direct_install_node() -> bool:
+    index = "https://nodejs.org/dist/latest/"
+    req = urllib.request.Request(index, headers=UA)
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
+        page = response.read().decode("utf-8", "replace")
+    arch = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64"
+    match = re.search(rf"(node-v[0-9.]+-{arch}\.msi)", page)
+    if not match:
+        return False
+    target = Path(tempfile.gettempdir()) / match.group(1)
+    download_file(index + match.group(1), target)
+    return run_installer(Path("msiexec.exe"), ["/i", str(target), "/qn", "/norestart"])
+
+
+def install_tool(name: str) -> bool:
+    if name in WINGET_IDS and winget_install(WINGET_IDS[name]):
+        return True
+    if name == "pwsh":
+        return direct_install_pwsh()
+    if name == "git":
+        return direct_install_git()
+    if name == "node":
+        return direct_install_node()
+    return False
+
+
+def ensure_windows_dependencies() -> None:
+    if os.name != "nt":
+        return
+    print("\nWindows dependencies\n")
+
+    python_dir = str(Path(sys.executable).resolve().parent)
+    if python_dir not in os.environ.get("PATH", "").split(os.pathsep):
+        os.environ["PATH"] = python_dir + os.pathsep + os.environ.get("PATH", "")
+
+    checks = [
+        ("Python", lambda: shutil.which("python") or sys.executable, "python"),
+        ("PowerShell 7", find_pwsh, "pwsh"),
+        ("Git", lambda: shutil.which("git"), "git"),
+        ("Node.js", lambda: shutil.which("node"), "node"),
+        ("OpenSSL", find_openssl, "openssl"),
+        ("bash", find_bash, "git"),
+    ]
+    for title, finder, install_name in checks:
+        found = finder()
+        if found:
+            check(True, f"Windows: {title}", str(found))
+            continue
+        print(f"[note] Windows: {title} not found — installing")
+        install_tool(install_name)
+        refresh_path()
+        found = finder()
+        check(bool(found), f"Windows: {title}", str(found) if found else "install failed; install manually")
+
+    if shutil.which("sqlite3"):
+        check(True, "Windows: sqlite3", shutil.which("sqlite3"))
+    else:
+        check(True, "Windows: sqlite3", "optional; Python sqlite3 fallback will be used")
+
+
 def run_checks() -> None:
     print("\nФАЗА 2 — проверка всех команд\n")
+
+    ensure_windows_dependencies()
 
     check(sys.version_info >= MIN_PY, f"Python >= {MIN_PY[0]}.{MIN_PY[1]}",
           f"установлен {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
