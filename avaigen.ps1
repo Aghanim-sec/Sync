@@ -1167,7 +1167,7 @@ function check_secret_store {
         if ($t) { $lines.Add("  DPAPI: available") } else { $lines.Add("  DPAPI: unavailable") }
     } else {
         foreach ($cmd in @('security','secret-tool','kwallet-query')) {
-            if (have $cmd) { $lines.Add("  $cmd: available") }
+            if (have $cmd) { $lines.Add("  ${cmd}: available") }
         }
 
         if (have 'security') {
