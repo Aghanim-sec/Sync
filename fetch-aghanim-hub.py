@@ -216,6 +216,19 @@ def confirm_upload(repo, assume_yes):
     return answer.strip().lower() in ('y', 'yes', 'д', 'да')
 
 
+def find_bash():
+    found = shutil.which('bash')
+    if found:
+        return found
+    git = shutil.which('git')
+    if git:
+        root = Path(git).resolve().parent.parent
+        for candidate in (root / 'bin' / 'bash.exe', root / 'usr' / 'bin' / 'bash.exe'):
+            if candidate.exists():
+                return str(candidate)
+    return None
+
+
 def run_check(hub=None, repo=None, upload_to=None, assume_yes=False, to_stderr=False, key_repo=None, test=False):
     """Run validated aghanim-check module safely and return its exit code."""
     source = check_file()
@@ -232,7 +245,17 @@ def run_check(hub=None, repo=None, upload_to=None, assume_yes=False, to_stderr=F
         module_path.chmod(0o700)
 
         # --selftest: aghanim-check -> avaigen.ps1 -selftest
-        command = [str(module_path)] + (['--selftest'] if test else [])
+        head = code[:100].lower()
+        if b'python' in head:
+            command = [sys.executable, str(module_path)]
+        elif os.name == 'nt':
+            bash = find_bash()
+            if not bash:
+                raise Blocked('dependency_down', 'bash is required for this aghanim-check on Windows')
+            command = [bash, str(module_path)]
+        else:
+            command = [str(module_path)]
+        command += (['--selftest'] if test else [])
 
         env = os.environ.copy()
         env['AGHANIM_DIR'] = str(source_dir)
