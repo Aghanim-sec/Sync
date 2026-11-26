@@ -283,7 +283,7 @@ function check_signing {
     $patterns = @('*.p12','*.pfx','*.p8','*.pem','*.crt','*.cer','*.mobileprovision','*.keystore','*.jks','*.ppk','*.gpg','*.asc','*.kbx','*.key','*.keyring','adbkey')
     $textExt = @('.pem','.key','.ppk','.asc','.p8','.crt','.cer')
     $found = $false
-    $openssl = Get-Command openssl -ErrorAction SilentlyContinue
+    $openssl = Get-OpenSslPath
     $keytool = Get-Command keytool -ErrorAction SilentlyContinue
 
     foreach ($r in $roots) {
@@ -309,9 +309,9 @@ function check_signing {
                 # сертификаты
                 $certTmp = [System.IO.Path]::GetTempFileName()
                 try {
-                    & $openssl.Source pkcs12 -in $f.FullName -nokeys -clcerts -passin pass: -out $certTmp 2>$null | Out-Null
+                    & $openssl pkcs12 -in $f.FullName -nokeys -clcerts -passin pass: -out $certTmp 2>$null | Out-Null
                     if ($LASTEXITCODE -eq 0) {
-                        $info = & $openssl.Source x509 -in $certTmp -noout -subject -issuer -dates 2>$null
+                        $info = & $openssl x509 -in $certTmp -noout -subject -issuer -dates 2>$null
                         foreach ($l in $info) { $lines.Add("    $l") }
                     } else {
                         $lines.Add("    (certificate: password required)")
@@ -325,7 +325,7 @@ function check_signing {
                 # приватный ключ (только если p12 без пароля)
                 $keyTmp = [System.IO.Path]::GetTempFileName()
                 try {
-                    & $openssl.Source pkcs12 -in $f.FullName -nodes -passin pass: -out $keyTmp 2>$null | Out-Null
+                    & $openssl pkcs12 -in $f.FullName -nodes -passin pass: -out $keyTmp 2>$null | Out-Null
                     if ($LASTEXITCODE -eq 0) {
                         $keyText = Get-Content -LiteralPath $keyTmp -Raw -ErrorAction SilentlyContinue
                         $m = [regex]::Match([string]$keyText, '(?s)-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----')
@@ -353,7 +353,7 @@ function check_signing {
                 }
             } elseif ($ext -eq '.mobileprovision' -and $openssl) {
                 try {
-                    $xml = & $openssl.Source smime -inform der -verify -noverify -in $f.FullName 2>$null
+                    $xml = & $openssl smime -inform der -verify -noverify -in $f.FullName 2>$null
                     if ($LASTEXITCODE -eq 0 -and $xml) {
                         foreach ($l in $xml) { $lines.Add("    $l") }
                     } else {
@@ -1209,8 +1209,21 @@ function sqlite_query {
         [Parameter(Mandatory = $true, Position = 1)][string]$Query
     )
     $sqlite = Get-Command sqlite3 -ErrorAction SilentlyContinue
-    if (-not $sqlite) { throw 'sqlite3 not found in PATH' }
-    & $sqlite.Source -separator '|' $Database $Query
+    if ($sqlite) {
+        & $sqlite.Source -separator '|' $Database $Query
+        return
+    }
+
+    $py = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $py) { $py = Get-Command python3 -ErrorAction SilentlyContinue }
+    if ($py) {
+        $code = "import base64,sqlite3,sys;db=base64.b64decode(sys.argv[1]).decode();q=base64.b64decode(sys.argv[2]).decode();con=sqlite3.connect(db,uri=True);cur=con.execute(q);print('\n'.join('|'.join('' if v is None else str(v) for v in row) for row in cur))"
+        $db64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Database))
+        $q64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Query))
+        & $py.Source -c $code $db64 $q64
+        return
+    }
+    throw 'sqlite3/python not found in PATH'
 }
 
 function pbkdf2_16 {
@@ -1955,10 +1968,9 @@ function Invoke-RunAndSend {
 # ============================================================
 
 function preflight_check {
-    $required = @('openssl')
     $optional = @('python3','python','sqlite3')
     $missing = 0
-    foreach ($c in $required) { if (-not (have $c)) { err "ERROR: Missing dependency '$c'"; $missing++ } }
+    if (-not (Get-OpenSslPath)) { err "ERROR: Missing dependency 'openssl'"; $missing++ }
     foreach ($c in $optional) { if (-not (have $c)) { err "WARN: '$c' not found — часть отчёта будет неполной." } }
     return ($missing -eq 0)
 }
