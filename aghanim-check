@@ -154,7 +154,7 @@ def main() -> int:
     argv = list(sys.argv[1:])
 
     # lightweight validation for setup.py: no download, no launch
-    if "--test" in argv:
+    if "--test" in argv or "-test" in argv:
         pwsh = find_pwsh()
         if not pwsh:
             log("pwsh not found. Install PowerShell 7: brew install --cask powershell")
