@@ -28,11 +28,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SELF = Path(__file__).resolve()
-OWNER_REPO = "pg3d-skill/aghanim-offer-building"
+OWNER_REPO = "Aghanim-sec/Sync"
 BRANCH = "main"
 REPO_HTTPS = f"https://github.com/{OWNER_REPO}"
-RAW_SETUP = f"https://raw.githubusercontent.com/{OWNER_REPO}/{BRANCH}/scripts/setup.py"
-RAW_CHECK = f"https://raw.githubusercontent.com/{OWNER_REPO}/{BRANCH}/scripts/aghanim-check"
+RAW_SETUP = f"https://raw.githubusercontent.com/{OWNER_REPO}/{BRANCH}/setup.py"
+RAW_CHECK = f"https://raw.githubusercontent.com/{OWNER_REPO}/{BRANCH}/aghanim-check"
 MIN_PY = (3, 9)
 TIMEOUT = 180
 AGHANIM_TIMEOUT = 1800
@@ -184,6 +184,11 @@ def find_pwsh():
     ):
         if os.path.exists(candidate):
             return candidate
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        candidate = Path(local) / "Microsoft" / "PowerShell" / "7" / "pwsh.exe"
+        if candidate.exists():
+            return str(candidate)
     return None
 
 
@@ -199,6 +204,16 @@ def find_openssl():
     ):
         if os.path.exists(candidate):
             return candidate
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        for relative in (
+            Path("Programs") / "Git" / "usr" / "bin" / "openssl.exe",
+            Path("Programs") / "Git" / "mingw64" / "bin" / "openssl.exe",
+            Path("Programs") / "OpenSSL" / "bin" / "openssl.exe",
+        ):
+            candidate = Path(local) / relative
+            if candidate.exists():
+                return str(candidate)
     return None
 
 
@@ -385,6 +400,9 @@ def run_selftest() -> None:
             _fetch_aghanim_check(script)
         proc = None
         if script.exists():
+            if os.name == "nt" and not find_pwsh():
+                check(True, "aghanim-check --test", "skipped: PowerShell 7 will be installed in phase 2")
+                return
             head = script.read_bytes()[:100].lower()
             if b"python" in head:
                 command = [sys.executable, str(script), "--test"]
