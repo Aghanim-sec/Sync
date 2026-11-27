@@ -138,9 +138,15 @@ def find_pwsh() -> Optional[str]:
         "/usr/local/bin/pwsh",
         "/usr/bin/pwsh",
         r"C:\Program Files\PowerShell\7\pwsh.exe",
+        r"C:\Program Files\PowerShell\7-preview\pwsh.exe",
     ):
         if os.path.exists(candidate):
             return candidate
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        candidate = Path(local) / "Microsoft" / "PowerShell" / "7" / "pwsh.exe"
+        if candidate.exists():
+            return str(candidate)
     return None
 
 
