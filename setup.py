@@ -96,6 +96,22 @@ def github_token():
     return None
 
 
+def token_prompt() -> bool:
+    if github_token():
+        return True
+    if not sys.stdin.isatty():
+        return False
+    try:
+        import getpass
+        value = getpass.getpass("GitHub token for Aghanim-sec/Sync: ").strip()
+    except Exception:
+        return False
+    if value:
+        os.environ["GITHUB_TOKEN"] = value
+        return True
+    return False
+
+
 def fetch_raw(url: str) -> bytes:
     ctx = ssl.create_default_context()
     headers = dict(UA)
@@ -489,6 +505,10 @@ def main() -> int:
                   f"{Path(sys.executable).name} scripts/setup.py")
         return 2
 
+
+    if not token_prompt():
+        print("Blocked: missing_input — GitHub token is required for Aghanim-sec/Sync")
+        return 2
 
     run_checks()
 
