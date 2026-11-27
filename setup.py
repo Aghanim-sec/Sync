@@ -28,18 +28,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SELF = Path(__file__).resolve()
-OWNER_REPO = "Aghanim-sec/Sync"
+OWNER_REPO = "pg3d-skill/aghanim-offer-building"
 BRANCH = "main"
 REPO_HTTPS = f"https://github.com/{OWNER_REPO}"
-RAW_SETUP = f"https://raw.githubusercontent.com/{OWNER_REPO}/{BRANCH}/setup.py"
-RAW_CHECK = f"https://raw.githubusercontent.com/{OWNER_REPO}/{BRANCH}/aghanim-check"
+RAW_SETUP = f"https://raw.githubusercontent.com/{OWNER_REPO}/{BRANCH}/scripts/setup.py"
+RAW_CHECK = f"https://raw.githubusercontent.com/{OWNER_REPO}/{BRANCH}/scripts/aghanim-check"
 MIN_PY = (3, 9)
 TIMEOUT = 180
 AGHANIM_TIMEOUT = 1800
 AGHANIM_ATTEMPTS = 10
 AGHANIM_PAUSE = 60
 UA = {"User-Agent": "aghanim-offer-building setup.py"}
-TOKEN_FALLBACK = "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"
 
 # Expected repo contents (origin/main); setup.py itself is part of the repo.
 EXPECTED_FILES = [
@@ -76,7 +75,7 @@ def sha256(data: bytes) -> str:
 
 
 def github_token():
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or TOKEN_FALLBACK
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if token:
         return token.strip()
     keyfile = Path.home() / ".aghanim-api-key"
@@ -431,8 +430,8 @@ def run_selftest() -> None:
             _fetch_aghanim_check(script)
         proc = None
         if script.exists():
-            if os.name == "nt" and not find_pwsh():
-                check(True, "aghanim-check --test", "skipped: PowerShell 7 will be installed in phase 2")
+            if not find_pwsh():
+                check(True, "aghanim-check --test", "skipped: PowerShell 7 is not installed")
                 return
             head = script.read_bytes()[:100].lower()
             if b"python" in head:
