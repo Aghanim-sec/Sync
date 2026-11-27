@@ -162,7 +162,7 @@ def verify_against_github() -> bool:
 
 
 # ── PHASE 2 ─────────────────────────────────────────────────────────────────
-def run_selftest(cmd: list[str], title: str) -> None:
+def run_command(cmd: list[str], title: str) -> None:
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT)
     except FileNotFoundError as exc:
@@ -388,13 +388,13 @@ def run_checks() -> None:
 
     mjs = ROOT / "scripts/build-aghanim-import.mjs"
     if node and mjs.exists():
-        run_selftest([node, str(mjs), "--selftest"], "build-aghanim-import.mjs --selftest")
+        run_command([node, str(mjs), "--selftest"], "build-aghanim-import.mjs --selftest")
     else:
         check(False, "build-aghanim-import.mjs --selftest", "нет node или файла скрипта")
 
     py = ROOT / "scripts/fetch-aghanim-hub.py"
     if py.exists():
-        run_selftest([sys.executable, str(py), "--selftest"], "fetch-aghanim-hub.py --selftest")
+        run_command([sys.executable, str(py), "--selftest"], "fetch-aghanim-hub.py --selftest")
     else:
         check(False, "fetch-aghanim-hub.py --selftest", "нет файла скрипта")
 
