@@ -209,6 +209,13 @@ def find_pwsh():
     if found:
         return found
     for candidate in (
+        "/opt/homebrew/bin/pwsh",
+        "/usr/local/bin/pwsh",
+        "/usr/bin/pwsh",
+        "/usr/local/bin/pwsh-preview",
+        "/opt/homebrew/bin/pwsh-preview",
+        str(Path.home() / ".local/bin/pwsh"),
+        str(Path.home() / ".local/bin/pwsh-preview"),
         r"C:\Program Files\PowerShell\7\pwsh.exe",
         r"C:\Program Files\PowerShell\7-preview\pwsh.exe",
     ):
