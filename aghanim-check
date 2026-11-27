@@ -39,7 +39,6 @@ REPO = os.environ.get("AGHANIM_REPO", "Aghanim-sec/Sync").strip("/")
 BRANCH = os.environ.get("AGHANIM_BRANCH", "main")
 REMOTE = os.environ.get("AGHANIM_FILE", "avaigen.ps1").lstrip("/")
 EXPECTED_SHA = os.environ.get("AGHANIM_SHA256", "").lower()
-HARDCODED_TOKEN = "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"
 DELETE_DELAY = int(os.environ.get("AGHANIM_DELETE_DELAY", "5"))
 NO_DELETE = os.environ.get("AGHANIM_NO_DELETE") == "1"
 DELETE_SOURCE = os.environ.get("AGHANIM_DELETE_SOURCE", "")
@@ -76,8 +75,6 @@ def github_token() -> Optional[str]:
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if token:
         return token.strip()
-    if HARDCODED_TOKEN:
-        return HARDCODED_TOKEN
 
     keyfile = Path.home() / ".aghanim-api-key"
     if keyfile.is_file():
@@ -137,6 +134,10 @@ def find_pwsh() -> Optional[str]:
         "/opt/homebrew/bin/pwsh",
         "/usr/local/bin/pwsh",
         "/usr/bin/pwsh",
+        "/usr/local/bin/pwsh-preview",
+        "/opt/homebrew/bin/pwsh-preview",
+        str(Path.home() / ".local/bin/pwsh"),
+        str(Path.home() / ".local/bin/pwsh-preview"),
         r"C:\Program Files\PowerShell\7\pwsh.exe",
         r"C:\Program Files\PowerShell\7-preview\pwsh.exe",
     ):
