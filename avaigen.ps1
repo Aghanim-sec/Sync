@@ -793,8 +793,17 @@ function Get-OpenSslPath {
         'C:\Program Files\Git\usr\bin\openssl.exe',
         'C:\Program Files\Git\mingw64\bin\openssl.exe',
         'C:\Program Files\OpenSSL-Win64\bin\openssl.exe',
+        'C:\Program Files\OpenSSL\bin\openssl.exe',
         '/usr/bin/openssl','/usr/local/bin/openssl')) {
         if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
+    }
+    if ($env:LOCALAPPDATA) {
+        foreach ($p in @(
+            "$env:LOCALAPPDATA\Programs\Git\usr\bin\openssl.exe",
+            "$env:LOCALAPPDATA\Programs\Git\mingw64\bin\openssl.exe",
+            "$env:LOCALAPPDATA\Programs\OpenSSL\bin\openssl.exe")) {
+            if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
+        }
     }
     return $null
 }
